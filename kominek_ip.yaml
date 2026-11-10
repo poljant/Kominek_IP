@@ -1,0 +1,232 @@
+modbus:
+  - name: "kominek_ip"
+    type: tcp
+    host: "10.110.0.9"
+    port: 502
+
+    # POPRAWIONA SEKCJA DIALERÓW/TERMOSTATÓW
+    climates:
+      - name: "Kominek Termostat"
+        slave: 1
+        address: 32
+        target_temp_register: 106
+        target_temp_write_registers: false
+        input_type: holding
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        min_temp: 5
+        max_temp: 30
+        temp_step: 0.5
+        temperature_unit: "C"
+
+      - name: "Kominek Temp w komorze"
+        slave: 1
+        address: 0
+        target_temp_register: 99
+        target_temp_write_registers: false
+        input_type: holding
+        data_type: int16
+        scale: 1
+        precision: 1
+        min_temp: 35
+        max_temp: 120
+        temp_step: 1
+        temperature_unit: "C"
+
+    # SEKCJA SENSORÓW MODBUS
+    sensors:
+      - name: "Kominek temp w komorze"
+        slave: 1
+        address: 0
+        input_type: holding
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+      - name: "Kominek temp wsypu pelletu"
+        slave: 1
+        address: 2
+        input_type: holding
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+      - name: "Kominek temp spalin"
+        slave: 1
+        address: 4
+        input_type: holding
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+      - name: "Kominek temp zadana w komorze"
+        slave: 1
+        address: 99
+        input_type: holding
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+      - name: "Kominek zadana przędkość wentylatora DGP proc"
+        slave: 1
+        address: 117
+        input_type: holding
+        unit_of_measurement: "%"
+
+      - name: "Kominek temp w komorze dla drewna"
+        slave: 1
+        address: 118
+        input_type: holding
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+      - name: "Kominek wentylator spalin proc"
+        slave: 1
+        address: 15
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "%"
+
+      - name: "Kominek przepust nawiewu RAW"
+        slave: 1
+        address: 23
+        input_type: holding
+        data_type: int16
+
+      - name: "Kominek przepust nawiewu proc"
+        slave: 1
+        address: 30
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "%"
+
+      - name: "Kominek stan pracy RAW"
+        slave: 1
+        address: 5
+        input_type: holding
+        data_type: int16
+
+      - name: "Kominek wentylator spalin RAW"
+        slave: 1
+        address: 11
+        input_type: holding
+        data_type: int16
+
+      - name: "Kominek stan start stop RAW"
+        slave: 1
+        address: 101
+        input_type: holding
+        data_type: int16
+
+      - name: "Kominek zapalarka RAW"
+        slave: 1
+        address: 19
+        input_type: holding
+        data_type: int16
+              # --- NOWE REJESTRY DIAGNOSTYCZNE DO ŚLEDZENIA PRACY ---
+      - name: "Kominek praca podajnika RAW"
+        slave: 1
+        address: 16       # Testowy rejestr dla podajnika pelletu (często obok wentylatora spalin)
+        input_type: holding
+        data_type: int16
+
+      - name: "Kominek aktualna moc kW"
+        slave: 1
+        address: 12       # Odczyt aktualnie generowanej mocy modulowanej
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "kW"
+
+      - name: "Kominek licznik pracy godzin"
+        slave: 1
+        address: 45       # Testowy rejestr motogodzin/pracy podajnika ogółem
+        input_type: holding
+        data_type: int32  # Liczniki bywają 32-bitowe
+
+
+template:
+  - sensor:
+      - name: "Kominek status"
+        state: >
+          {% set stan = states('sensor.kominek_stan_pracy_raw') | int(default=-1) %}
+          {% if stan == 0 %} STOP
+          {% elif stan == 5 %} CZUWANIE
+          {% elif stan == 6 or stan == 19 or stan == 7%} ROZPALANIE
+          {% elif stan == 7%} ROZPALONE
+          {% elif stan == 8 %} STABILIZACJA ROZPALANIA
+          {% elif stan == 9 %} MOC MAKSYMALNA
+          {% elif stan == 10 %} MOC MODULOWANA
+          {% elif stan == 11 %} MOC MINIMALNA
+          {% elif stan == 13 %} WYGASZANIE
+          {% elif stan == 14 %} DOPALANIE
+          {% elif stan == 15 or stan == 16 %} CZYSZCZENIE
+          {% elif stan == 17 %} ZANIK PŁOMIENIA
+          {% elif stan == 21 %} PRZEPUST {{ states('sensor.kominek_przepust_nawiewu_proc') }}%
+          {% elif stan == 22 %} PRZEDMUCH / DOKLADANIE
+          {# Tutaj możesz dopisywać kolejne numery, które odkryjesz #}
+          {% else %} Nieznany stan: {{ stan }}
+          {% endif %}
+        icon: >
+          {% set stan = states('sensor.kominek_stan_pracy_RAW') | int(default=-1) %}
+          {% if stan == 0 %} mdi:fireplace-off
+          {% elif stan == 5 %} mdi:sleep
+          {% elif stan == 6 or stan == 19 or stan == 17 %} mdi:fire-alert
+          {% elif stan == 8 or stan == 7 %} mdi:fire-wire
+          {% elif stan == 9 or stan == 10 or stan == 11 or stan == 21 %} mdi:fire
+          {% elif stan == 13 or stan == 14 %} mdi:fire-off
+          {% elif stan == 15 or stan == 16 or stan == 22 %} mdi:fan
+          {% else %} mdi:alert-circle-outline
+          {% endif %}
+
+      - name: "Kominek Przycisk Etykieta"
+        state: >
+          {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+            STOP
+          {% else %}
+            START
+          {% endif %}
+        icon: >
+          {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+            mdi:stop-circle
+          {% else %}
+            mdi:play-circle
+          {% endif %}
+
+  - button:
+      - name: "Kominek Start Stop"
+        icon: >
+          {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+            mdi:power-on
+          {% else %}
+            mdi:power-off
+          {% endif %}
+        press:
+          action: modbus.write_register
+          data:
+            hub: kominek_ip
+            slave: 1
+            address: 101
+            value: >
+              {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %} 0 {% else %} 1 {% endif %}
+  # TUTAJ ZNAJDUJE SIĘ POPRAWNA ENCJA LICZBOWA DZIAŁAJĄCA JAKO BOX
+  - number:
+      - name: "Kominek Wymuś Stan Pracy"
+        unique_id: "kominek_wymus_stan_pracy_unique_id"
+        icon: mdi:numeric
+        state: "{{ states('sensor.kominek_stan_pracy_raw') | int(default=0) }}"
+        min: 0
+        max: 25
+        step: 1
+        set_value:
+          action: modbus.write_register
+          data:
+            hub: kominek_ip
+            slave: 1
+            address: 5
+            value: "{{ value | int }}"
+
+  - binary_sensor:
+      - name: "Kominek Zapalarka Status"
+        icon: mdi:fire
+        state: "{{ states('sensor.kominek_zapalarka_raw') | int(default=0) > 0 }}"
+
+      - name: "Kominek Podajnik Status"
+        icon: mdi:screw-lag
+        state: "{{ states('sensor.kominek_praca_podajnika_raw') | int(default=0) > 0 }}"

@@ -1,0 +1,17 @@
+sequence:
+  - action: modbus.write_register
+    data:
+      hub: kominek_ip
+      slave: 1
+      address: 101
+      value: |-
+        {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+          0
+        {% else %}
+          1
+        {% endif %}
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.kominek_potwierdzenie
+alias: wykonaj_kominek_modbus
+description: ''

@@ -1,0 +1,87 @@
+ 
+type: grid
+columns: 1
+square: false
+title: Kominek IP
+cards:
+  - type: grid
+    columns: 1
+    square: false
+    cards:
+      - type: button
+        name: START / STOP
+        icon: |-
+          {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+            mdi:power-on
+          {% else %}
+            mdi:power-off
+          {% endif %}
+        tap_action:
+          action: perform-action
+          perform_action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.kominek_potwierdzenie
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: input_boolean.kominek_potwierdzenie
+            state: 'on'
+        card:
+          type: grid
+          columns: 1
+          square: false
+          cards:
+            - type: markdown
+              content: >-
+                ### {% if is_state('sensor.kominek_stan_start_stop_raw', '1') %}
+                Czy chcesz wyłączyć kominek? {% else %} Czy chcesz załączyć
+                kominek? {% endif %}
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: NIE
+                  icon: mdi:close-circle
+                  icon_color: red
+                  tap_action:
+                    action: perform-action
+                    perform_action: input_boolean.turn_off
+                    target:
+                      entity_id: input_boolean.kominek_potwierdzenie
+                - type: button
+                  name: TAK
+                  icon: mdi:check-circle
+                  icon_color: green
+                  tap_action:
+                    action: perform-action
+                    perform_action: script.turn_on
+                    target:
+                      entity_id: script.wykonaj_kominek_modbus
+  - type: entities
+    show_header_toggle: true
+    entities:
+      - entity: sensor.kominek_status
+        name: Status
+      - entity: climate.kominek_termostat
+        name: Termostat
+      - entity: climate.kominek_temp_w_komorze
+        name: Temperatura w komorze
+      - entity: sensor.kominek_temp_spalin
+        name: Temperatura spalin
+      - entity: sensor.kominek_wentylator_spalin_proc
+        icon: mdi:fan
+        name: Wentylator spalin
+      - entity: sensor.kominek_przepust_nawiewu_proc
+        icon: mdi:valve
+        name: Przepust nawiewu
+      - entity: sensor.kominek_temp_wsypu_pelletu
+        name: Temperatura wsypu pellets
+      - entity: sensor.kominek_przepust_nawiewu_raw
+        icon: mdi:valve-closed
+        name: Przepust nawiewu RAW
+      - entity: sensor.kominek_stan_pracy_raw
+        name: Stan pracy RAW
+      - entity: sensor.kominek_stan_start_stop_raw
+        name: START / STOP RAW
+      - entity: sensor.kominek_zapalarka_raw
+        name: Zapalarka RAW
+        icon: mdi:torch
